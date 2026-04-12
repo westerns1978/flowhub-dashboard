@@ -598,25 +598,15 @@ export default function FlowVoice() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-fh-border bg-fh-bg/50">
             <div className="flex items-center gap-3">
-              {/* Waveform avatar */}
-              <div className="w-8 h-8 rounded-full bg-fh-accent/10 flex items-center justify-center relative overflow-hidden">
-                {active ? (
-                  <div className="flex items-end gap-[2px] h-4">
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="w-[3px] bg-fh-accent rounded-full"
-                        style={{
-                          animation: `waveform 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
-                          height: "4px",
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <Mic className="w-4 h-4 text-fh-accent" />
-                )}
-              </div>
+              {/* Flow avatar — teal waveform SVG */}
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className={active ? "animate-pulse" : ""}>
+                <circle cx="16" cy="16" r="16" fill="#0d9488"/>
+                <rect x="6" y="13" width="3" height="6" rx="1.5" fill="white"/>
+                <rect x="11" y="9" width="3" height="14" rx="1.5" fill="white"/>
+                <rect x="16" y="11" width="3" height="10" rx="1.5" fill="white"/>
+                <rect x="21" y="13" width="3" height="6" rx="1.5" fill="white"/>
+                <rect x="26" y="14" width="3" height="4" rx="1.5" fill="white"/>
+              </svg>
               <div>
                 <span className="text-sm font-semibold text-white">Flow</span>
                 <span className="text-xs text-fh-dim ml-2">
