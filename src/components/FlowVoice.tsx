@@ -15,23 +15,20 @@ import type { DnaResult } from "../types";
 
 // ── Gemini SDK (imported from @google/genai) ─────────────────────
 
-import { GoogleGenAI, type LiveServerMessage } from "@google/genai";
+import { GoogleGenAI, Modality, Type, type LiveServerMessage } from "@google/genai";
 
 // ── Config ───────────────────────────────────────────────────────
 
 const API_KEY =
-  (import.meta as Record<string, Record<string, string>>).env?.VITE_API_KEY ||
-  "";
+  (import.meta as any).env?.VITE_API_KEY || "";
 const CLOUD_RUN =
-  (import.meta as Record<string, Record<string, string>>).env
-    ?.VITE_CLOUD_RUN_URL ||
+  (import.meta as any).env?.VITE_CLOUD_RUN_URL ||
   "https://flowhub-push-webhook-286939318734.us-west1.run.app";
 const SUPABASE_URL =
-  (import.meta as Record<string, Record<string, string>>).env
-    ?.VITE_SUPABASE_URL || "https://ldzzlndsspkyohvzfiiu.supabase.co";
+  (import.meta as any).env?.VITE_SUPABASE_URL ||
+  "https://ldzzlndsspkyohvzfiiu.supabase.co";
 const SUPABASE_ANON_KEY =
-  (import.meta as Record<string, Record<string, string>>).env
-    ?.VITE_SUPABASE_ANON_KEY || "";
+  (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "";
 
 const MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
@@ -46,22 +43,23 @@ const SYSTEM_INSTRUCTION =
 
 // ── Tool declarations ────────────────────────────────────────────
 
-const TOOLS = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TOOLS: any[] = [
   {
     functionDeclarations: [
       {
         name: "scan_document",
         description: "Trigger a scan on a local or network scanner",
         parameters: {
-          type: "object" as const,
+          type: Type.OBJECT,
           properties: {
             scanner_ip: {
-              type: "string" as const,
+              type: Type.STRING,
               description:
                 "IP address of the scanner. If omitted, uses first available.",
             },
             format: {
-              type: "string" as const,
+              type: Type.STRING,
               enum: ["pdf", "jpeg"],
               description: "Output format (default: pdf)",
             },
@@ -72,7 +70,7 @@ const TOOLS = [
         name: "discover_scanners",
         description: "Find available scanners on the network",
         parameters: {
-          type: "object" as const,
+          type: Type.OBJECT,
           properties: {},
         },
       },
@@ -80,10 +78,10 @@ const TOOLS = [
         name: "get_job_status",
         description: "Check status and DNA result of a document processing job",
         parameters: {
-          type: "object" as const,
+          type: Type.OBJECT,
           properties: {
             job_id: {
-              type: "string" as const,
+              type: Type.STRING,
               description: "The UUID of the job to check",
             },
           },
@@ -95,14 +93,14 @@ const TOOLS = [
         description:
           "Send a processed document to Sonia AI agent for review and action",
         parameters: {
-          type: "object" as const,
+          type: Type.OBJECT,
           properties: {
             job_id: {
-              type: "string" as const,
+              type: Type.STRING,
               description: "The UUID of the job to route",
             },
             instructions: {
-              type: "string" as const,
+              type: Type.STRING,
               description:
                 "Optional instructions for Sonia about what to do with this document",
             },
@@ -115,18 +113,18 @@ const TOOLS = [
         description:
           "Submit text, email content, or a URL for AI processing and DNA extraction",
         parameters: {
-          type: "object" as const,
+          type: Type.OBJECT,
           properties: {
             text: {
-              type: "string" as const,
+              type: Type.STRING,
               description: "Text or email content to ingest",
             },
             url: {
-              type: "string" as const,
+              type: Type.STRING,
               description: "URL to fetch and ingest",
             },
             title: {
-              type: "string" as const,
+              type: Type.STRING,
               description: "Optional title for the content",
             },
           },
@@ -252,9 +250,8 @@ export default function FlowVoice() {
   const [lastDna, setLastDna] = useState<DnaResult | null>(null);
 
   // Refs for session management
-  const sessionRef = useRef<ReturnType<
-    ReturnType<typeof GoogleGenAI.prototype.live.connect> extends Promise<infer S> ? () => S : never
-  > | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -400,7 +397,7 @@ export default function FlowVoice() {
           },
         },
         config: {
-          responseModalities: ["AUDIO", "TEXT"],
+          responseModalities: [Modality.AUDIO, Modality.TEXT],
           systemInstruction: {
             parts: [{ text: SYSTEM_INSTRUCTION }],
           },
@@ -408,7 +405,7 @@ export default function FlowVoice() {
         },
       });
 
-      sessionRef.current = session as typeof sessionRef.current;
+      sessionRef.current = session;
 
       // Stream mic audio to session
       processor.onaudioprocess = (e) => {
@@ -421,15 +418,14 @@ export default function FlowVoice() {
           pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
         try {
-          (sessionRef.current as { sendRealtimeInput?: (msg: { audio: { data: string; mimeType: string } }) => void })
-            ?.sendRealtimeInput?.({
-              audio: {
-                data: btoa(
-                  String.fromCharCode(...new Uint8Array(pcm.buffer))
-                ),
-                mimeType: "audio/pcm;rate=16000",
-              },
-            });
+          sessionRef.current.sendRealtimeInput({
+            audio: {
+              data: btoa(
+                String.fromCharCode(...new Uint8Array(pcm.buffer))
+              ),
+              mimeType: "audio/pcm;rate=16000",
+            },
+          });
         } catch {
           // Session may have closed
         }
@@ -451,7 +447,7 @@ export default function FlowVoice() {
   const handleServerMessage = useCallback(
     (msg: LiveServerMessage) => {
       // Text response
-      const serverContent = (msg as Record<string, unknown>).serverContent as
+      const serverContent = (msg as any).serverContent as
         | { modelTurn?: { parts?: { text?: string; inlineData?: { data: string; mimeType: string } }[] } }
         | undefined;
 
@@ -471,7 +467,7 @@ export default function FlowVoice() {
       }
 
       // Tool calls
-      const toolCall = (msg as Record<string, unknown>).toolCall as
+      const toolCall = (msg as any).toolCall as
         | { functionCalls?: { name: string; args: Record<string, unknown>; id: string }[] }
         | undefined;
 
@@ -512,13 +508,7 @@ export default function FlowVoice() {
       // Send result back to session
       if (sessionRef.current) {
         try {
-          (
-            sessionRef.current as {
-              sendToolResponse?: (msg: {
-                functionResponses: { response: Record<string, unknown>; id: string }[];
-              }) => void;
-            }
-          )?.sendToolResponse?.({
+          sessionRef.current.sendToolResponse({
             functionResponses: [
               {
                 response: result,
@@ -539,7 +529,7 @@ export default function FlowVoice() {
   const endSession = useCallback(() => {
     if (sessionRef.current) {
       try {
-        (sessionRef.current as { close?: () => void })?.close?.();
+        sessionRef.current.close();
       } catch {
         // Already closed
       }
