@@ -19,16 +19,15 @@ import { GoogleGenAI, Modality, Type, type LiveServerMessage } from "@google/gen
 
 // ── Config ───────────────────────────────────────────────────────
 
-const API_KEY =
-  (import.meta as any).env?.VITE_API_KEY || "";
+const apiKey = import.meta.env.VITE_API_KEY;
 const CLOUD_RUN =
-  (import.meta as any).env?.VITE_CLOUD_RUN_URL ||
+  import.meta.env.VITE_CLOUD_RUN_URL ||
   "https://flowhub-push-webhook-286939318734.us-west1.run.app";
 const SUPABASE_URL =
-  (import.meta as any).env?.VITE_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL ||
   "https://ldzzlndsspkyohvzfiiu.supabase.co";
 const SUPABASE_ANON_KEY =
-  (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "";
+  import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 const MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
@@ -343,7 +342,8 @@ export default function FlowVoice() {
   // ── Start session ──────────────────────────────────────────────
 
   const startSession = useCallback(async () => {
-    if (!API_KEY) {
+    if (!apiKey) {
+      console.error('[Flow] No VITE_API_KEY found');
       addTranscript("tool", "Error: VITE_API_KEY not set. Add it to .env");
       return;
     }
@@ -355,7 +355,7 @@ export default function FlowVoice() {
       setActive(true);
       addTranscript("flow", "Connecting...");
 
-      const client = new GoogleGenAI({ apiKey: API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
 
       // Get microphone
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -376,7 +376,7 @@ export default function FlowVoice() {
       processorRef.current = processor;
 
       // Connect to Gemini Live
-      const session = await client.live.connect({
+      const session = await ai.live.connect({
         model: MODEL,
         callbacks: {
           onopen: () => {
