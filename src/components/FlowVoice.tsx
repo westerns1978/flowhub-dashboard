@@ -248,9 +248,10 @@ export default function FlowVoice() {
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [lastDna, setLastDna] = useState<DnaResult | null>(null);
 
-  // Refs for session management
+  // Refs for session management — Katie/AIVA pattern
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sessionRef = useRef<any>(null);
+  const connectingRef = useRef(false); // reconnect guard
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -270,7 +271,7 @@ export default function FlowVoice() {
   const addTranscript = useCallback(
     (role: TranscriptEntry["role"], text: string) => {
       setTranscript((prev) => [
-        ...prev.slice(-50), // Keep last 50 entries
+        ...prev.slice(-50),
         { role, text, timestamp: Date.now() },
       ]);
     },
@@ -279,8 +280,7 @@ export default function FlowVoice() {
 
   // ── Stop all audio ─────────────────────────────────────────────
 
-  const stopAllAudio = useCallback(() => {
-    // Stop microphone
+  function stopAllAudio() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -293,24 +293,37 @@ export default function FlowVoice() {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
-    // Stop playback
     if (playbackCtxRef.current) {
       playbackCtxRef.current.close().catch(() => {});
       playbackCtxRef.current = null;
     }
     playbackQueueRef.current = [];
     isPlayingRef.current = false;
-  }, []);
+  }
+
+  // ── End session (defined early so callbacks can reference it) ──
+
+  function endSession() {
+    console.log("[Flow] endSession called");
+    const s = sessionRef.current;
+    sessionRef.current = null;
+    connectingRef.current = false;
+    if (s) {
+      try { s.close(); } catch { /* already closed */ }
+    }
+    stopAllAudio();
+    setActive(false);
+    setToolStatus(null);
+  }
 
   // ── Audio playback (PCM from Gemini) ───────────────────────────
 
-  const playAudioChunk = useCallback((pcmData: ArrayBuffer) => {
+  function playAudioChunk(pcmData: ArrayBuffer) {
     if (!playbackCtxRef.current) {
       playbackCtxRef.current = new AudioContext({ sampleRate: 24000 });
     }
     const ctx = playbackCtxRef.current;
 
-    // Convert Int16 PCM to Float32
     const int16 = new Int16Array(pcmData);
     const float32 = new Float32Array(int16.length);
     for (let i = 0; i < int16.length; i++) {
@@ -319,7 +332,7 @@ export default function FlowVoice() {
 
     playbackQueueRef.current.push(float32);
     drainPlaybackQueue(ctx);
-  }, []);
+  }
 
   function drainPlaybackQueue(ctx: AudioContext) {
     if (isPlayingRef.current) return;
@@ -339,25 +352,103 @@ export default function FlowVoice() {
     source.start();
   }
 
-  // ── Start session ──────────────────────────────────────────────
+  // ── Handle server messages ─────────────────────────────────────
 
-  const startSession = useCallback(async () => {
+  function handleServerMessage(msg: LiveServerMessage) {
+    const m = msg as any;
+
+    // Text + audio responses
+    const parts = m.serverContent?.modelTurn?.parts;
+    if (parts) {
+      for (const part of parts) {
+        if (part.text) {
+          addTranscript("flow", part.text);
+        }
+        if (part.inlineData?.data && part.inlineData.mimeType?.includes("audio")) {
+          const raw = atob(part.inlineData.data);
+          const bytes = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          playAudioChunk(bytes.buffer);
+        }
+      }
+    }
+
+    // Tool calls
+    const functionCalls = m.toolCall?.functionCalls;
+    if (functionCalls) {
+      for (const fc of functionCalls) {
+        handleToolCall(fc.name, fc.args, fc.id);
+      }
+    }
+  }
+
+  // ── Execute tool calls ─────────────────────────────────────────
+
+  async function handleToolCall(
+    name: string,
+    args: Record<string, unknown>,
+    callId: string
+  ) {
+    const statusMap: Record<string, string> = {
+      scan_document: "Scanning...",
+      discover_scanners: "Discovering scanners...",
+      get_job_status: "Checking job status...",
+      route_to_sonia: "Routing to Sonia...",
+      ingest_content: "Processing content...",
+    };
+
+    setToolStatus(statusMap[name] || `Running ${name}...`);
+    addTranscript("tool", statusMap[name] || `Calling ${name}...`);
+
+    const result = await executeTool(name, args);
+
+    if (result.dna && typeof result.dna === "object") {
+      setLastDna(result.dna as DnaResult);
+    }
+
+    setToolStatus(null);
+
+    // Send result back to the live session
+    if (sessionRef.current) {
+      try {
+        sessionRef.current.sendToolResponse({
+          functionResponses: [{ response: result, id: callId }],
+        });
+      } catch (e) {
+        console.error("[Flow] Tool response send failed:", e);
+      }
+    }
+  }
+
+  // ── Start session — Katie pattern ──────────────────────────────
+
+  async function startSession() {
+    // Guard: don't double-connect
+    if (connectingRef.current || sessionRef.current) {
+      console.warn("[Flow] Already connecting or connected, skipping");
+      return;
+    }
+
     if (!apiKey) {
-      console.error('[Flow] No VITE_API_KEY found');
+      console.error("[Flow] No VITE_API_KEY found");
       addTranscript("tool", "Error: VITE_API_KEY not set. Add it to .env");
       return;
     }
 
-    // Stop any previous session
+    // Tear down any prior session cleanly
     stopAllAudio();
+    sessionRef.current = null;
+    connectingRef.current = true;
 
     try {
       setActive(true);
       addTranscript("flow", "Connecting...");
+      console.log("[Flow] Initializing GoogleGenAI...");
 
       const ai = new GoogleGenAI({ apiKey });
 
-      // Get microphone
+      // Get microphone FIRST — fail fast if denied
+      console.log("[Flow] Requesting microphone...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -368,18 +459,21 @@ export default function FlowVoice() {
       });
       streamRef.current = stream;
 
-      // Create audio context for mic capture
+      // Audio context for mic capture
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
       const micSource = audioCtx.createMediaStreamSource(stream);
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
-      // Connect to Gemini Live
+      // Connect to Gemini Live — await the session
+      console.log(`[Flow] Connecting to ${MODEL}...`);
       const session = await ai.live.connect({
         model: MODEL,
         callbacks: {
           onopen: () => {
+            console.log("[Flow] WebSocket OPEN");
+            connectingRef.current = false;
             setTranscript([]);
             addTranscript("flow", "Flow here. How can I help?");
           },
@@ -387,12 +481,19 @@ export default function FlowVoice() {
             handleServerMessage(msg);
           },
           onerror: (err: ErrorEvent) => {
-            console.error("[FlowVoice] Session error:", err);
+            console.error("[Flow] WebSocket ERROR:", err);
             addTranscript("tool", `Connection error: ${err.message || "unknown"}`);
-            endSession();
+            // Clean up — don't call endSession recursively
+            sessionRef.current = null;
+            connectingRef.current = false;
+            stopAllAudio();
+            setActive(false);
           },
           onclose: () => {
-            addTranscript("tool", "Session ended.");
+            console.log("[Flow] WebSocket CLOSED");
+            // Clean teardown — set ref to null so nothing tries to send
+            sessionRef.current = null;
+            connectingRef.current = false;
             setActive(false);
           },
         },
@@ -405,13 +506,14 @@ export default function FlowVoice() {
         },
       });
 
+      // Store session in ref IMMEDIATELY after await resolves
       sessionRef.current = session;
+      console.log("[Flow] Session stored in ref, starting mic stream");
 
       // Stream mic audio to session
       processor.onaudioprocess = (e) => {
         if (!sessionRef.current) return;
         const inputData = e.inputBuffer.getChannelData(0);
-        // Convert Float32 to Int16 PCM
         const pcm = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]));
@@ -420,137 +522,40 @@ export default function FlowVoice() {
         try {
           sessionRef.current.sendRealtimeInput({
             audio: {
-              data: btoa(
-                String.fromCharCode(...new Uint8Array(pcm.buffer))
-              ),
+              data: btoa(String.fromCharCode(...new Uint8Array(pcm.buffer))),
               mimeType: "audio/pcm;rate=16000",
             },
           });
         } catch {
-          // Session may have closed
+          // Session closed between check and send — ignore
         }
       };
 
       micSource.connect(processor);
       processor.connect(audioCtx.destination);
+      console.log("[Flow] Mic connected, session fully active");
     } catch (err) {
-      console.error("[FlowVoice] Start error:", err);
+      console.error("[Flow] Start failed:", err);
       addTranscript("tool", `Failed to start: ${String(err)}`);
+      sessionRef.current = null;
+      connectingRef.current = false;
       stopAllAudio();
       setActive(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addTranscript, stopAllAudio]);
-
-  // ── Handle server messages ─────────────────────────────────────
-
-  const handleServerMessage = useCallback(
-    (msg: LiveServerMessage) => {
-      // Text response
-      const serverContent = (msg as any).serverContent as
-        | { modelTurn?: { parts?: { text?: string; inlineData?: { data: string; mimeType: string } }[] } }
-        | undefined;
-
-      if (serverContent?.modelTurn?.parts) {
-        for (const part of serverContent.modelTurn.parts) {
-          if (part.text) {
-            addTranscript("flow", part.text);
-          }
-          if (part.inlineData?.data && part.inlineData.mimeType?.includes("audio")) {
-            // Decode base64 audio and play
-            const raw = atob(part.inlineData.data);
-            const bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-            playAudioChunk(bytes.buffer);
-          }
-        }
-      }
-
-      // Tool calls
-      const toolCall = (msg as any).toolCall as
-        | { functionCalls?: { name: string; args: Record<string, unknown>; id: string }[] }
-        | undefined;
-
-      if (toolCall?.functionCalls) {
-        for (const fc of toolCall.functionCalls) {
-          handleToolCall(fc.name, fc.args, fc.id);
-        }
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addTranscript, playAudioChunk]
-  );
-
-  // ── Execute tool calls ─────────────────────────────────────────
-
-  const handleToolCall = useCallback(
-    async (name: string, args: Record<string, unknown>, callId: string) => {
-      const statusMap: Record<string, string> = {
-        scan_document: "Scanning...",
-        discover_scanners: "Discovering scanners...",
-        get_job_status: "Checking job status...",
-        route_to_sonia: "Routing to Sonia...",
-        ingest_content: "Processing content...",
-      };
-
-      setToolStatus(statusMap[name] || `Running ${name}...`);
-      addTranscript("tool", statusMap[name] || `Calling ${name}...`);
-
-      const result = await executeTool(name, args);
-
-      // Track DNA results
-      if (result.dna && typeof result.dna === "object") {
-        setLastDna(result.dna as DnaResult);
-      }
-
-      setToolStatus(null);
-
-      // Send result back to session
-      if (sessionRef.current) {
-        try {
-          sessionRef.current.sendToolResponse({
-            functionResponses: [
-              {
-                response: result,
-                id: callId,
-              },
-            ],
-          });
-        } catch (e) {
-          console.error("[FlowVoice] Tool response send failed:", e);
-        }
-      }
-    },
-    [addTranscript]
-  );
-
-  // ── End session ────────────────────────────────────────────────
-
-  const endSession = useCallback(() => {
-    if (sessionRef.current) {
-      try {
-        sessionRef.current.close();
-      } catch {
-        // Already closed
-      }
-      sessionRef.current = null;
-    }
-    stopAllAudio();
-    setActive(false);
-    setToolStatus(null);
-  }, [stopAllAudio]);
+  }
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       endSession();
     };
-  }, [endSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Toggle ─────────────────────────────────────────────────────
 
   function toggle() {
-    if (active) {
+    if (active || connectingRef.current) {
       endSession();
     } else {
       setOpen(true);
