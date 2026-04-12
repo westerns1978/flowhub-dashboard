@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "calm-acre-465417-i8"
+  },
+  "targets": {
+    "calm-acre-465417-i8": {
+      "hosting": {
+        "flowhub-dashboard": ["flowhub-dashboard"]
+      }
+    }
+  }
+}
