@@ -34,11 +34,14 @@ const MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 const SYSTEM_INSTRUCTION =
   "You are Flow, the intelligent document assistant for FlowHub " +
   "by Gemynd. You help users scan, process, and route documents " +
-  "using your voice. You are efficient, professional, and " +
-  "proactive. When a user asks you to scan something, immediately " +
-  "call discover_scanners then scan_document. When a document is " +
-  "processed, summarize what you found and ask if they want to " +
-  "route it to Sonia. Keep responses concise — users are working.";
+  "using your voice. You are efficient, professional, and helpful. " +
+  "IMPORTANT: Do NOT call any tools until the user speaks and " +
+  "explicitly asks you to do something. When you first connect, " +
+  "just greet the user briefly and wait for their request. " +
+  "When a user asks you to scan, call discover_scanners first, " +
+  "then scan_document. When a document is processed, summarize " +
+  "what you found and ask if they want to route it to Sonia. " +
+  "Keep responses concise — users are working.";
 
 // ── Tool declarations ────────────────────────────────────────────
 
@@ -252,6 +255,7 @@ export default function FlowVoice() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sessionRef = useRef<any>(null);
   const connectingRef = useRef(false); // reconnect guard
+  const sessionStartTimeRef = useRef(0); // track session open time
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -478,6 +482,7 @@ export default function FlowVoice() {
         callbacks: {
           onopen: () => {
             console.log("[Flow] WebSocket OPEN");
+            sessionStartTimeRef.current = Date.now();
             connectingRef.current = false;
             setTranscript([]);
             addTranscript("flow", "Flow here. How can I help?");
@@ -495,11 +500,17 @@ export default function FlowVoice() {
             setActive(false);
           },
           onclose: () => {
-            console.log("[Flow] WebSocket CLOSED");
+            const sessionDuration = Date.now() - sessionStartTimeRef.current;
+            console.log(`[Flow] WebSocket CLOSED after ${sessionDuration}ms`);
             // Clean teardown — set ref to null so nothing tries to send
             sessionRef.current = null;
             connectingRef.current = false;
+            stopAllAudio();
             setActive(false);
+            if (sessionDuration < 3000) {
+              console.error("[Flow] Session closed too quickly (<3s) — not reconnecting");
+              addTranscript("tool", "Session ended unexpectedly. Check console for details.");
+            }
           },
         },
         config: {
