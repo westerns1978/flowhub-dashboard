@@ -1,16 +1,16 @@
 /* ================================================================
    FlowHub Dashboard v2 — App Shell
-   twAIn Robotics brand: black, red, white. Technical authority.
-   Light/dark mode with system preference detection.
+   twAIn Robotics brand. Light/dark mode. Flow tool callbacks.
    ================================================================ */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Scan, GitBranch, Settings, Sun, Moon } from "lucide-react";
 import CaptureView from "./views/CaptureView";
 import PipelineView from "./views/PipelineView";
 import SettingsView from "./views/SettingsView";
 import FlowVoice from "./components/FlowVoice";
 import { useTheme } from "./useTheme";
+import { routeToSonia, ingestText, ingestUrl } from "./api";
 import type { View } from "./types";
 
 const NAV: { id: View; label: string; icon: typeof Scan }[] = [
@@ -23,12 +23,54 @@ export default function App() {
   const [view, setView] = useState<View>("capture");
   const { theme, toggleTheme } = useTheme();
 
+  // ── Flow tool callback — wire voice commands to UI actions ────
+  const handleFlowToolCall = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (tool: string, params: any) => {
+      console.log("[App] Flow tool call:", tool, params);
+      switch (tool) {
+        case "discover_scanners":
+          // Switch to Capture view, Scanner tab
+          setView("capture");
+          // Dispatch custom event so CaptureView can switch to scanner tab
+          window.dispatchEvent(new CustomEvent("flow:discover-scanners"));
+          break;
+        case "scan_document":
+          setView("capture");
+          window.dispatchEvent(new CustomEvent("flow:scan-document", { detail: params }));
+          break;
+        case "get_job_status":
+          setView("pipeline");
+          break;
+        case "route_to_sonia":
+          if (params?.job_id) {
+            routeToSonia(params.job_id).catch((e) =>
+              console.error("[App] Route to Sonia failed:", e)
+            );
+          }
+          break;
+        case "ingest_content":
+          setView("capture");
+          if (params?.url) {
+            ingestUrl(params.url).catch((e) =>
+              console.error("[App] Ingest URL failed:", e)
+            );
+          } else if (params?.text) {
+            ingestText(params.text, params.title).catch((e) =>
+              console.error("[App] Ingest text failed:", e)
+            );
+          }
+          break;
+      }
+    },
+    []
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-fh-bg text-fh-text">
       {/* ── Top Nav ───────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-6 py-3 border-b-2 border-fh-red bg-fh-bg-alt sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          {/* Scanner/document icon */}
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
             <rect x="3" y="3" width="18" height="14" rx="2" stroke="#cc1111" strokeWidth="2" fill="none"/>
             <line x1="3" y1="20" x2="21" y2="20" stroke="#cc1111" strokeWidth="2" strokeLinecap="round"/>
@@ -59,18 +101,12 @@ export default function App() {
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
-
-          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             className="ml-2 p-2 rounded-lg text-fh-muted hover:text-fh-red hover:bg-fh-border/30 transition-colors"
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
-            {theme === "dark" ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </nav>
 
@@ -94,8 +130,8 @@ export default function App() {
         {" "}Reference Implementation
       </footer>
 
-      {/* ── Flow Voice Agent (persists across all views) ──────── */}
-      <FlowVoice />
+      {/* ── Flow Voice Agent ──────────────────────────────────── */}
+      <FlowVoice onToolCall={handleFlowToolCall} />
     </div>
   );
 }

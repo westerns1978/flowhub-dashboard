@@ -39,6 +39,18 @@ export default function CaptureView() {
   const [routing, setRouting] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Listen for Flow voice agent events
+  useEffect(() => {
+    function onDiscover() { setTab("scanner"); }
+    function onScan() { setTab("scanner"); }
+    window.addEventListener("flow:discover-scanners", onDiscover);
+    window.addEventListener("flow:scan-document", onScan);
+    return () => {
+      window.removeEventListener("flow:discover-scanners", onDiscover);
+      window.removeEventListener("flow:scan-document", onScan);
+    };
+  }, []);
+
   const toast = useCallback(
     (type: Toast["type"], message: string) => {
       const id = crypto.randomUUID();
