@@ -475,81 +475,80 @@ export default function FlowVoice() {
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
-      // Connect to Gemini Live — await the session
-      console.log(`[Flow] Connecting to ${MODEL}...`);
+      // Helper: wire up mic after session is stored in ref
+      function startMicStream() {
+        console.log("[Flow] Starting mic stream...");
+        processor.onaudioprocess = (e) => {
+          if (!sessionRef.current) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          const pcm = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          try {
+            sessionRef.current.sendRealtimeInput({
+              audio: {
+                data: btoa(String.fromCharCode(...new Uint8Array(pcm.buffer))),
+                mimeType: "audio/pcm;rate=16000",
+              },
+            });
+          } catch {
+            // Session closed between check and send
+          }
+        };
+        micSource.connect(processor);
+        processor.connect(audioCtx.destination);
+        console.log("[Flow] Mic connected, session fully active");
+      }
+
+      // Connect to Gemini Live — MINIMAL config, no tools, no systemInstruction
+      console.log("[Flow] Connecting to gemini-2.5-flash-native-audio-preview-12-2025...");
       const session = await ai.live.connect({
-        model: MODEL,
+        model: "gemini-2.5-flash-native-audio-preview-12-2025",
+        config: {
+          responseModalities: [Modality.AUDIO],
+        },
         callbacks: {
           onopen: () => {
             console.log("[Flow] WebSocket OPEN");
             sessionStartTimeRef.current = Date.now();
             connectingRef.current = false;
+            sessionRef.current = session;
             setTranscript([]);
             addTranscript("flow", "Flow here. How can I help?");
+            startMicStream();
           },
-          onmessage: (msg: LiveServerMessage) => {
-            handleServerMessage(msg);
-          },
-          onerror: (err: ErrorEvent) => {
-            console.error("[Flow] WebSocket ERROR:", err);
-            addTranscript("tool", `Connection error: ${err.message || "unknown"}`);
-            // Clean up — don't call endSession recursively
+          onmessage: handleServerMessage,
+          onerror: (e: ErrorEvent) => {
+            console.error("[Flow] WebSocket ERROR:", e);
             sessionRef.current = null;
             connectingRef.current = false;
             stopAllAudio();
             setActive(false);
           },
-          onclose: () => {
-            const sessionDuration = Date.now() - sessionStartTimeRef.current;
-            console.log(`[Flow] WebSocket CLOSED after ${sessionDuration}ms`);
-            // Clean teardown — set ref to null so nothing tries to send
+          onclose: (e: CloseEvent) => {
+            const dur = Date.now() - (sessionStartTimeRef.current || 0);
+            console.log("[Flow] WebSocket CLOSED after", dur, "ms", e);
             sessionRef.current = null;
             connectingRef.current = false;
             stopAllAudio();
-            setActive(false);
-            if (sessionDuration < 3000) {
-              console.error("[Flow] Session closed too quickly (<3s) — not reconnecting");
-              addTranscript("tool", "Session ended unexpectedly. Check console for details.");
+            if (dur < 3000) {
+              console.error("[Flow] Too quick — not reconnecting");
+              addTranscript("tool", "Session closed immediately. Check API key and model.");
+              setActive(false);
+              return;
             }
+            setActive(false);
           },
-        },
-        config: {
-          responseModalities: [Modality.AUDIO, Modality.TEXT],
-          systemInstruction: {
-            parts: [{ text: SYSTEM_INSTRUCTION }],
-          },
-          tools: TOOLS,
         },
       });
 
-      // Store session in ref IMMEDIATELY after await resolves
-      sessionRef.current = session;
-      console.log("[Flow] Session stored in ref, starting mic stream");
-
-      // Stream mic audio to session
-      processor.onaudioprocess = (e) => {
-        if (!sessionRef.current) return;
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcm = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
-          pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-        }
-        try {
-          sessionRef.current.sendRealtimeInput({
-            audio: {
-              data: btoa(String.fromCharCode(...new Uint8Array(pcm.buffer))),
-              mimeType: "audio/pcm;rate=16000",
-            },
-          });
-        } catch {
-          // Session closed between check and send — ignore
-        }
-      };
-
-      micSource.connect(processor);
-      processor.connect(audioCtx.destination);
-      console.log("[Flow] Mic connected, session fully active");
+      // Also store immediately in case onopen hasn't fired yet
+      if (!sessionRef.current) {
+        sessionRef.current = session;
+        console.log("[Flow] Session stored (pre-onopen fallback)");
+      }
     } catch (err) {
       console.error("[Flow] Start failed:", err);
       addTranscript("tool", `Failed to start: ${String(err)}`);
