@@ -423,6 +423,11 @@ export default function FlowVoice() {
   // ── Start session — Katie pattern ──────────────────────────────
 
   async function startSession() {
+    console.log("[Flow] startSession called");
+    console.log("[Flow] apiKey:", import.meta.env.VITE_API_KEY ? "present" : "MISSING");
+    console.log("[Flow] connectingRef:", connectingRef.current);
+    console.log("[Flow] sessionRef:", sessionRef.current ? "exists" : "null");
+
     // Guard: don't double-connect
     if (connectingRef.current || sessionRef.current) {
       console.warn("[Flow] Already connecting or connected, skipping");
@@ -555,6 +560,7 @@ export default function FlowVoice() {
   // ── Toggle ─────────────────────────────────────────────────────
 
   function toggle() {
+    console.log("[Flow] mic button clicked, active:", active, "connecting:", connectingRef.current);
     if (active || connectingRef.current) {
       endSession();
     } else {
