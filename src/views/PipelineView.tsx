@@ -1,6 +1,5 @@
 /* ================================================================
-   View 2 — PIPELINE
-   Full-width job list, auto-refreshes, expandable rows
+   View 2 — PIPELINE — twAIn red theme
    ================================================================ */
 
 import { useState, useEffect, useCallback } from "react";
@@ -35,17 +34,17 @@ const SOURCE_ICON: Record<string, typeof Radio> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  ingested: "bg-gray-500/15 text-gray-400",
-  processing: "bg-yellow-500/15 text-yellow-400",
-  completed: "bg-green-500/15 text-green-400",
-  routed: "bg-fh-accent/15 text-fh-accent",
-  error: "bg-red-500/15 text-red-400",
+  ingested: "bg-fh-dim/20 text-fh-dim",
+  processing: "bg-fh-warning/15 text-fh-warning",
+  completed: "bg-fh-muted/15 text-fh-muted",
+  routed: "bg-fh-red/15 text-fh-red",
+  error: "bg-fh-red-bright/15 text-fh-red-bright",
 };
 
 function scoreColor(score: number): string {
-  if (score >= 0.8) return "bg-fh-accent";
-  if (score >= 0.5) return "bg-yellow-400";
-  return "bg-red-400";
+  if (score >= 0.8) return "bg-fh-red";
+  if (score >= 0.5) return "bg-fh-warning";
+  return "bg-fh-dim";
 }
 
 function timeAgo(iso: string): string {
@@ -93,7 +92,6 @@ export default function PipelineView() {
     return () => clearInterval(iv);
   }, [fetchJobs]);
 
-  // Stats
   const today = new Date().toISOString().slice(0, 10);
   const todayJobs = jobs.filter((j) => j.created_at?.startsWith(today));
   const processingCount = jobs.filter((j) => j.status === "processing").length;
@@ -136,8 +134,8 @@ export default function PipelineView() {
             key={label}
             className="card px-4 py-2.5 flex items-baseline gap-2"
           >
-            <span className="text-xl font-bold text-white">{value}</span>
-            <span className="text-xs text-fh-dim font-medium tracking-wider">
+            <span className="text-xl font-mono font-bold text-white">{value}</span>
+            <span className="text-xs text-fh-dim font-mono tracking-wider">
               {label}
             </span>
           </div>
@@ -157,7 +155,7 @@ export default function PipelineView() {
       {/* ── Job table ─────────────────────────────────────────── */}
       <div className="card overflow-hidden">
         {/* Header */}
-        <div className="grid grid-cols-[40px_2fr_1fr_100px_1fr_110px] gap-2 px-4 py-2.5 border-b border-fh-border text-xs text-fh-dim font-medium uppercase tracking-wider">
+        <div className="grid grid-cols-[40px_2fr_1fr_100px_1fr_110px] gap-2 px-4 py-2.5 border-b border-fh-border text-xs text-fh-dim font-mono uppercase tracking-wider">
           <span />
           <span>File Name</span>
           <span>Doc Type</span>
@@ -170,23 +168,23 @@ export default function PipelineView() {
         {loading && jobs.length === 0 ? (
           <div className="flex items-center justify-center py-16 text-fh-dim">
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            Loading jobs...
+            <span className="font-mono text-sm">Loading jobs...</span>
           </div>
         ) : jobs.length === 0 ? (
-          <div className="text-center py-16 text-fh-dim text-sm">
+          <div className="text-center py-16 text-fh-dim text-sm font-mono">
             No jobs yet. Go to Capture to ingest a document.
           </div>
         ) : (
-          jobs.map((job) => {
+          jobs.map((job, idx) => {
             const isExpanded = expanded === job.job_id;
             const SrcIcon = SOURCE_ICON[job.source] || FolderUp;
             const displayStatus = job.routed_at ? "routed" : job.status;
+            const rowBg = idx % 2 === 0 ? "bg-fh-bg" : "bg-fh-bg-alt";
 
             return (
               <div key={job.job_id} className="border-b border-fh-border last:border-0">
-                {/* Main row */}
                 <div
-                  className="grid grid-cols-[40px_2fr_1fr_100px_1fr_110px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  className={`grid grid-cols-[40px_2fr_1fr_100px_1fr_110px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-fh-red/5 transition-colors ${rowBg}`}
                   onClick={() => setExpanded(isExpanded ? null : job.job_id)}
                 >
                   <div className="flex items-center gap-1">
@@ -202,7 +200,7 @@ export default function PipelineView() {
                       {job.file_name || "Untitled"}
                     </span>
                   </div>
-                  <span className="text-sm text-fh-muted truncate">
+                  <span className="text-sm text-fh-muted truncate font-mono">
                     {job.doc_type || "—"}
                   </span>
                   <div className="flex items-center gap-2">
@@ -212,42 +210,41 @@ export default function PipelineView() {
                         style={{ width: `${(job.dna_score || 0) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs text-fh-dim w-8 text-right">
+                    <span className="text-xs text-fh-dim w-8 text-right font-mono">
                       {Math.round((job.dna_score || 0) * 100)}
                     </span>
                   </div>
-                  <span className="text-xs text-fh-dim">
+                  <span className="text-xs text-fh-dim font-mono">
                     {job.created_at ? timeAgo(job.created_at) : "—"}
                   </span>
                   <span
-                    className={`badge text-center justify-center ${STATUS_COLORS[displayStatus] || STATUS_COLORS.completed}`}
+                    className={`badge text-center justify-center font-mono ${STATUS_COLORS[displayStatus] || STATUS_COLORS.completed}`}
                   >
                     {displayStatus}
                   </span>
                 </div>
 
-                {/* Expanded detail */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-1 bg-white/[0.01]">
+                  <div className="px-4 pb-4 pt-1 bg-fh-bg-alt">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mb-3">
                       <div>
-                        <span className="text-fh-dim">Job ID: </span>
+                        <span className="text-fh-dim font-mono">Job ID: </span>
                         <span className="text-fh-muted font-mono text-xs">
                           {job.job_id}
                         </span>
                       </div>
                       <div>
-                        <span className="text-fh-dim">Source: </span>
+                        <span className="text-fh-dim font-mono">Source: </span>
                         <span className="text-fh-muted">{job.source}</span>
                       </div>
                       <div>
-                        <span className="text-fh-dim">Title: </span>
+                        <span className="text-fh-dim font-mono">Title: </span>
                         <span className="text-white">
                           {job.title || "—"}
                         </span>
                       </div>
                       <div>
-                        <span className="text-fh-dim">Routed: </span>
+                        <span className="text-fh-dim font-mono">Routed: </span>
                         <span className="text-fh-muted">
                           {job.routed_to || "Not routed"}
                         </span>

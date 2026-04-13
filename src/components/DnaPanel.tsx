@@ -1,5 +1,5 @@
 /* ================================================================
-   DNA Result Panel — shows extracted document intelligence
+   DNA Result Panel — twAIn red theme
    ================================================================ */
 
 import {
@@ -24,16 +24,16 @@ function ScoreGauge({ score }: { score: number }) {
   const pct = Math.round(score * 100);
   const r = 36;
   const circ = 2 * Math.PI * r;
-  const offset = circ - (score * circ);
+  const offset = circ - score * circ;
   const color =
-    pct >= 80 ? "#5eead4" : pct >= 50 ? "#facc15" : "#f87171";
+    pct >= 80 ? "#cc1111" : pct >= 50 ? "#ffaa00" : "#555555";
 
   return (
     <div className="relative w-24 h-24 flex-shrink-0">
       <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
         <circle
           cx="40" cy="40" r={r}
-          fill="none" stroke="#1e3a5f" strokeWidth="6"
+          fill="none" stroke="#2a2a2a" strokeWidth="6"
         />
         <circle
           cx="40" cy="40" r={r}
@@ -45,10 +45,12 @@ function ScoreGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold" style={{ color }}>
+        <span className="text-xl font-mono font-bold text-white">
           {pct}
         </span>
-        <span className="text-[10px] text-fh-dim">DNA</span>
+        <span className="text-[10px] text-fh-red font-mono uppercase tracking-wider">
+          DNA
+        </span>
       </div>
     </div>
   );
@@ -74,13 +76,13 @@ export default function DnaPanel({ result, onRoute, onEmail, routing }: Props) {
       <div className="flex items-start gap-4">
         <ScoreGauge score={dna.dna_score} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-fh-accent font-medium uppercase tracking-wider mb-1">
+          <p className="text-xs text-fh-red font-mono font-medium uppercase tracking-wider mb-1">
             {dna.document_type}
           </p>
           <h3 className="text-white font-semibold text-lg leading-snug truncate">
             {dna.title}
           </h3>
-          <p className="text-fh-muted text-xs mt-1 truncate">{file_name}</p>
+          <p className="text-fh-muted text-xs mt-1 truncate font-mono">{file_name}</p>
         </div>
       </div>
 
@@ -92,7 +94,7 @@ export default function DnaPanel({ result, onRoute, onEmail, routing }: Props) {
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <Users className="w-3.5 h-3.5 text-fh-dim" />
-            <span className="text-xs text-fh-dim font-medium uppercase tracking-wider">
+            <span className="text-xs text-fh-dim font-mono uppercase tracking-wider">
               Entities
             </span>
           </div>
@@ -100,7 +102,7 @@ export default function DnaPanel({ result, onRoute, onEmail, routing }: Props) {
             {dna.entities.map((e, i) => (
               <span
                 key={i}
-                className="badge bg-fh-accent/10 text-fh-accent border border-fh-accent/20"
+                className="badge bg-fh-red/10 text-fh-red border border-fh-red/20"
               >
                 {e}
               </span>
@@ -114,7 +116,7 @@ export default function DnaPanel({ result, onRoute, onEmail, routing }: Props) {
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <Tag className="w-3.5 h-3.5 text-fh-dim" />
-            <span className="text-xs text-fh-dim font-medium uppercase tracking-wider">
+            <span className="text-xs text-fh-dim font-mono uppercase tracking-wider">
               Tags
             </span>
           </div>

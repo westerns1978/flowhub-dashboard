@@ -584,40 +584,40 @@ export default function FlowVoice() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — red circle */}
       <button
         onClick={toggle}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
           active
-            ? "bg-fh-accent text-fh-bg shadow-fh-accent/30 shadow-xl"
-            : "bg-fh-card border border-fh-border text-fh-accent hover:bg-fh-accent/10"
+            ? "bg-fh-red text-white shadow-fh-red/40 shadow-xl"
+            : "bg-fh-card border border-fh-border text-fh-red hover:bg-fh-red/10"
         }`}
         title={active ? "Stop Flow" : "Start Flow voice assistant"}
       >
         {active ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
 
-        {/* Pulsing ring when active */}
+        {/* Pulsing red glow when active */}
         {active && (
           <>
-            <span className="absolute inset-0 rounded-full border-2 border-fh-accent animate-ping opacity-30" />
-            <span className="absolute inset-[-4px] rounded-full border border-fh-accent/20 animate-pulse" />
+            <span className="absolute inset-0 rounded-full border-2 border-fh-red animate-ping opacity-30" />
+            <span className="absolute inset-[-4px] rounded-full border border-fh-red/20 animate-pulse" />
           </>
         )}
       </button>
 
-      {/* Panel */}
+      {/* Panel — black bg, red border */}
       {open && (
         <div
-          className={`fixed bottom-24 right-6 z-50 w-96 max-h-[70vh] rounded-xl overflow-hidden shadow-2xl border border-fh-border bg-fh-card flex flex-col transition-all duration-300 ${
+          className={`fixed bottom-24 right-6 z-50 w-96 max-h-[70vh] rounded-xl overflow-hidden shadow-2xl border border-fh-red/30 bg-fh-bg-alt flex flex-col transition-all duration-300 ${
             open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-fh-border bg-fh-bg/50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-fh-border bg-fh-bg">
             <div className="flex items-center gap-3">
-              {/* Flow avatar — teal waveform SVG */}
+              {/* Flow avatar — red waveform SVG */}
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className={active ? "animate-pulse" : ""}>
-                <circle cx="16" cy="16" r="16" fill="#0d9488"/>
+                <circle cx="16" cy="16" r="16" fill="#cc1111"/>
                 <rect x="6" y="13" width="3" height="6" rx="1.5" fill="white"/>
                 <rect x="11" y="9" width="3" height="14" rx="1.5" fill="white"/>
                 <rect x="16" y="11" width="3" height="10" rx="1.5" fill="white"/>
@@ -625,8 +625,8 @@ export default function FlowVoice() {
                 <rect x="26" y="14" width="3" height="4" rx="1.5" fill="white"/>
               </svg>
               <div>
-                <span className="text-sm font-semibold text-white">Flow</span>
-                <span className="text-xs text-fh-dim ml-2">
+                <span className="text-sm font-mono font-medium text-fh-red">Flow</span>
+                <span className="text-xs text-fh-dim ml-2 font-mono">
                   {active ? "Listening" : "Idle"}
                 </span>
               </div>
@@ -644,9 +644,9 @@ export default function FlowVoice() {
 
           {/* Tool status banner */}
           {toolStatus && (
-            <div className="px-4 py-2 bg-fh-accent/5 border-b border-fh-accent/20 flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 text-fh-accent animate-spin" />
-              <span className="text-xs text-fh-accent font-medium">
+            <div className="px-4 py-2 bg-fh-red/5 border-b border-fh-red/20 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 text-fh-red animate-spin" />
+              <span className="text-xs text-fh-red font-mono">
                 {toolStatus}
               </span>
             </div>
@@ -660,7 +660,7 @@ export default function FlowVoice() {
             {transcript.length === 0 && !active && (
               <div className="text-center text-fh-dim text-sm py-8">
                 <p>Tap the mic button to start talking to Flow.</p>
-                <p className="mt-1 text-xs">
+                <p className="mt-1 text-xs font-mono">
                   She can scan documents, check jobs, and route to Sonia.
                 </p>
               </div>
@@ -676,9 +676,9 @@ export default function FlowVoice() {
                 <div
                   className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                     entry.role === "user"
-                      ? "bg-fh-accent/10 text-fh-accent"
+                      ? "bg-fh-red/10 text-fh-red"
                       : entry.role === "tool"
-                        ? "bg-yellow-500/10 text-yellow-300 text-xs font-mono"
+                        ? "bg-fh-warning/10 text-fh-warning text-xs font-mono"
                         : "bg-white/5 text-fh-muted"
                   }`}
                 >
@@ -690,17 +690,17 @@ export default function FlowVoice() {
 
           {/* Last DNA result mini-card */}
           {lastDna && (
-            <div className="px-4 py-2 border-t border-fh-border bg-fh-bg/30">
+            <div className="px-4 py-2 border-t border-fh-border bg-fh-bg/50">
               <div className="flex items-center gap-2">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold"
                   style={{
                     background:
                       lastDna.dna_score >= 0.8
-                        ? "rgba(94,234,212,0.15)"
-                        : "rgba(250,204,21,0.15)",
+                        ? "rgba(204,17,17,0.15)"
+                        : "rgba(255,170,0,0.15)",
                     color:
-                      lastDna.dna_score >= 0.8 ? "#5eead4" : "#facc15",
+                      lastDna.dna_score >= 0.8 ? "#cc1111" : "#ffaa00",
                   }}
                 >
                   {Math.round(lastDna.dna_score * 100)}
@@ -709,7 +709,7 @@ export default function FlowVoice() {
                   <p className="text-xs text-white font-medium truncate">
                     {lastDna.title}
                   </p>
-                  <p className="text-[10px] text-fh-dim truncate">
+                  <p className="text-[10px] text-fh-dim truncate font-mono">
                     {lastDna.document_type} &middot;{" "}
                     {lastDna.entities?.slice(0, 3).join(", ")}
                   </p>
@@ -720,7 +720,7 @@ export default function FlowVoice() {
 
           {/* Footer hint */}
           <div className="px-4 py-2 border-t border-fh-border text-center">
-            <p className="text-[10px] text-fh-dim">
+            <p className="text-[10px] text-fh-dim font-mono">
               {active
                 ? "Speak naturally — Flow is listening"
                 : "Click the mic to start a session"}
@@ -728,14 +728,6 @@ export default function FlowVoice() {
           </div>
         </div>
       )}
-
-      {/* Waveform keyframes */}
-      <style>{`
-        @keyframes waveform {
-          0% { height: 4px; }
-          100% { height: 16px; }
-        }
-      `}</style>
     </>
   );
 }

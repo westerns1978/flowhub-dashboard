@@ -1,7 +1,5 @@
 /* ================================================================
-   View 1 — CAPTURE
-   Left:  tabbed input (Drop Zone, URL, Text, Scanner)
-   Right: live DNA result panel
+   View 1 — CAPTURE — twAIn red theme
    ================================================================ */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -90,7 +88,7 @@ export default function CaptureView() {
   return (
     <div className="flex flex-col lg:flex-row gap-4 p-4 h-[calc(100vh-7rem)]">
       {/* ── Left panel: inputs ─────────────────────────────────── */}
-      <div className="lg:w-1/2 flex flex-col card overflow-hidden">
+      <div className="lg:w-1/2 flex flex-col card overflow-hidden relative">
         {/* Tab bar */}
         <div className="flex border-b border-fh-border">
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -99,7 +97,7 @@ export default function CaptureView() {
               onClick={() => setTab(id)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 tab === id
-                  ? "text-fh-accent border-b-2 border-fh-accent bg-fh-accent/5"
+                  ? "text-white border-b-2 border-fh-red bg-fh-red/5"
                   : "text-fh-dim hover:text-fh-muted"
               }`}
             >
@@ -110,12 +108,12 @@ export default function CaptureView() {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 p-5 overflow-y-auto">
+        <div className="flex-1 p-5 overflow-y-auto relative">
           {processing && (
-            <div className="absolute inset-0 bg-fh-bg/70 z-10 flex items-center justify-center rounded-lg">
-              <div className="flex items-center gap-3 text-fh-accent">
+            <div className="absolute inset-0 bg-fh-bg/80 z-10 flex items-center justify-center rounded-lg">
+              <div className="flex items-center gap-3 text-fh-red">
                 <Loader2 className="w-6 h-6 animate-spin" />
-                <span className="text-sm font-medium">
+                <span className="text-sm font-mono">
                   Processing with Gemini...
                 </span>
               </div>
@@ -155,7 +153,7 @@ export default function CaptureView() {
 }
 
 /* ================================================================
-   Tab: Drop Zone
+   Tab: Drop Zone — red dashed border, red glow on drag
    ================================================================ */
 
 function DropTab({ onIngest }: { onIngest: (file: File) => void }) {
@@ -169,7 +167,6 @@ function DropTab({ onIngest }: { onIngest: (file: File) => void }) {
     if (file) onIngest(file);
   }
 
-  // Clipboard paste support
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       const file = e.clipboardData?.files[0];
@@ -189,15 +186,15 @@ function DropTab({ onIngest }: { onIngest: (file: File) => void }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`flex-1 min-h-[240px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-colors ${
+        className={`flex-1 min-h-[240px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-200 ${
           dragOver
-            ? "border-fh-accent bg-fh-accent/5"
-            : "border-fh-border hover:border-fh-accent/50"
+            ? "border-fh-red bg-fh-red/5 shadow-[0_0_30px_rgba(204,17,17,0.15)]"
+            : "border-fh-border hover:border-fh-red/50"
         }`}
       >
         <Upload
           className={`w-10 h-10 ${
-            dragOver ? "text-fh-accent" : "text-fh-dim"
+            dragOver ? "text-fh-red" : "text-fh-dim"
           }`}
         />
         <div className="text-center">
@@ -206,7 +203,7 @@ function DropTab({ onIngest }: { onIngest: (file: File) => void }) {
             PDF, images, Word, text — or click to browse
           </p>
         </div>
-        <div className="flex items-center gap-2 text-fh-dim text-xs">
+        <div className="flex items-center gap-2 text-fh-dim text-xs font-mono">
           <Clipboard className="w-3.5 h-3.5" />
           <span>Ctrl+V to paste from clipboard</span>
         </div>
@@ -233,11 +230,11 @@ function UrlTab({ onIngest }: { onIngest: (url: string) => void }) {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <label className="text-sm text-fh-muted font-medium">
+      <label className="text-sm text-fh-muted font-mono uppercase tracking-wider">
         Document URL
       </label>
       <input
-        className="input"
+        className="input font-mono text-sm"
         placeholder="https://example.com/document.pdf"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
@@ -335,7 +332,7 @@ function ScannerTab() {
         Discover Scanners
       </button>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {error && <p className="text-fh-red text-sm font-mono">{error}</p>}
 
       {scanners.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -347,12 +344,12 @@ function ScannerTab() {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-2.5 h-2.5 rounded-full ${
-                    s.status === "online" ? "bg-green-400" : "bg-red-400"
+                    s.status === "online" ? "bg-fh-success" : "bg-fh-red"
                   }`}
                 />
                 <div>
                   <p className="text-sm text-white font-medium">{s.name}</p>
-                  <p className="text-xs text-fh-dim">
+                  <p className="text-xs text-fh-dim font-mono">
                     {s.ip} &middot; {s.protocol.toUpperCase()}
                   </p>
                 </div>
@@ -360,8 +357,8 @@ function ScannerTab() {
               <span
                 className={`badge ${
                   s.status === "online"
-                    ? "bg-green-500/10 text-green-400"
-                    : "bg-red-500/10 text-red-400"
+                    ? "bg-fh-success/10 text-fh-success"
+                    : "bg-fh-red/10 text-fh-red"
                 }`}
               >
                 {s.status}
@@ -374,7 +371,7 @@ function ScannerTab() {
       <div className="mt-auto pt-4 border-t border-fh-border">
         <p className="text-xs text-fh-dim">
           For Epson EOP touchscreen scanning, configure the scanner to push to
-          the <code className="text-fh-accent">/eop</code> endpoint.
+          the <code className="text-fh-red font-mono">/eop</code> endpoint.
         </p>
       </div>
     </div>

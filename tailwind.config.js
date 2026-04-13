@@ -5,14 +5,21 @@ export default {
     extend: {
       colors: {
         fh: {
-          bg: "#0a0e1a",
-          card: "#0d1529",
-          border: "#1e3a5f",
-          accent: "#5eead4",
-          secondary: "#0d9488",
-          muted: "#94a3b8",
-          dim: "#475569",
+          bg: "#0a0a0a",
+          "bg-alt": "#111111",
+          card: "#1a1a1a",
+          border: "#2a2a2a",
+          red: "#cc1111",
+          "red-bright": "#ff2222",
+          muted: "#999999",
+          dim: "#555555",
+          success: "#22cc44",
+          warning: "#ffaa00",
         },
+      },
+      fontFamily: {
+        mono: ['"DM Mono"', "JetBrains Mono", "monospace"],
+        sans: ["Inter", "system-ui", "sans-serif"],
       },
     },
   },

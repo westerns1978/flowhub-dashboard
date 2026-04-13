@@ -1,5 +1,5 @@
 /* ================================================================
-   Toast notification component
+   Toast notification — twAIn red theme
    ================================================================ */
 
 import { useEffect } from "react";
@@ -39,15 +39,15 @@ function ToastItem({
   }, [toast.id, onDismiss]);
 
   const colors = {
-    success: "border-green-500/40 bg-green-500/10 text-green-300",
-    error: "border-red-500/40 bg-red-500/10 text-red-300",
-    info: "border-fh-accent/40 bg-fh-accent/10 text-fh-accent",
+    success: "border-fh-success/40 bg-fh-success/10 text-fh-success",
+    error: "border-fh-red/40 bg-fh-red/10 text-fh-red-bright",
+    info: "border-fh-border bg-fh-card text-fh-muted",
   };
   const Icon = toast.type === "error" ? AlertCircle : CheckCircle;
 
   return (
     <div
-      className={`flex items-start gap-2 px-4 py-3 rounded-lg border text-sm ${colors[toast.type]} animate-[slideIn_0.2s_ease-out]`}
+      className={`flex items-start gap-2 px-4 py-3 rounded-lg border text-sm ${colors[toast.type]}`}
     >
       <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
       <span className="flex-1">{toast.message}</span>
