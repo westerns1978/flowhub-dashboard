@@ -505,6 +505,9 @@ export default function FlowVoice() {
       }
 
       // Connect to Gemini Live — MINIMAL config, no tools, no systemInstruction
+      // IMPORTANT: onopen fires BEFORE await resolves, so we cannot
+      // reference `session` inside callbacks. Use sessionRef only,
+      // and assign it AFTER the await.
       console.log("[Flow] Connecting to gemini-2.5-flash-native-audio-preview-12-2025...");
       const session = await ai.live.connect({
         model: "gemini-2.5-flash-native-audio-preview-12-2025",
@@ -516,10 +519,10 @@ export default function FlowVoice() {
             console.log("[Flow] WebSocket OPEN");
             sessionStartTimeRef.current = Date.now();
             connectingRef.current = false;
-            sessionRef.current = session;
+            // Do NOT assign sessionRef here — session const isn't ready yet.
+            // It gets assigned after await resolves below.
             setTranscript([]);
             addTranscript("flow", "Flow here. How can I help?");
-            startMicStream();
           },
           onmessage: handleServerMessage,
           onerror: (e: ErrorEvent) => {
@@ -553,11 +556,10 @@ export default function FlowVoice() {
         },
       });
 
-      // Also store immediately in case onopen hasn't fired yet
-      if (!sessionRef.current) {
-        sessionRef.current = session;
-        console.log("[Flow] Session stored (pre-onopen fallback)");
-      }
+      // Store session AFTER await resolves — now safe to reference
+      sessionRef.current = session;
+      console.log("[Flow] Session stored in ref, starting mic stream");
+      startMicStream();
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error("[Flow] Start failed:", errMsg, err);
