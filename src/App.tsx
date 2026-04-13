@@ -1,14 +1,16 @@
 /* ================================================================
    FlowHub Dashboard v2 — App Shell
    twAIn Robotics brand: black, red, white. Technical authority.
+   Light/dark mode with system preference detection.
    ================================================================ */
 
 import { useState } from "react";
-import { Scan, GitBranch, Settings } from "lucide-react";
+import { Scan, GitBranch, Settings, Sun, Moon } from "lucide-react";
 import CaptureView from "./views/CaptureView";
 import PipelineView from "./views/PipelineView";
 import SettingsView from "./views/SettingsView";
 import FlowVoice from "./components/FlowVoice";
+import { useTheme } from "./useTheme";
 import type { View } from "./types";
 
 const NAV: { id: View; label: string; icon: typeof Scan }[] = [
@@ -19,9 +21,10 @@ const NAV: { id: View; label: string; icon: typeof Scan }[] = [
 
 export default function App() {
   const [view, setView] = useState<View>("capture");
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen flex flex-col bg-fh-bg">
+    <div className="min-h-screen flex flex-col bg-fh-bg text-fh-text">
       {/* ── Top Nav ───────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-6 py-3 border-b-2 border-fh-red bg-fh-bg-alt sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -33,7 +36,7 @@ export default function App() {
             <line x1="7" y1="10" x2="14" y2="10" stroke="#cc1111" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
             <line x1="7" y1="13" x2="11" y2="13" stroke="#cc1111" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
           </svg>
-          <span className="text-lg font-mono font-medium tracking-tight text-white">
+          <span className="text-lg font-mono font-medium tracking-tight">
             Flow<span className="text-fh-red">Hub</span>
           </span>
           <span className="text-xs text-fh-dim ml-1 hidden sm:inline font-sans">
@@ -49,13 +52,26 @@ export default function App() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 view === id
                   ? "bg-fh-red/10 text-fh-red border border-fh-red/30"
-                  : "text-fh-muted hover:text-white hover:bg-white/5"
+                  : "text-fh-muted hover:text-fh-text hover:bg-fh-border/30"
               }`}
             >
               <Icon className="w-4 h-4" />
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="ml-2 p-2 rounded-lg text-fh-muted hover:text-fh-red hover:bg-fh-border/30 transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
         </nav>
 
         <div className="text-xs text-fh-red font-mono tracking-widest hidden md:block uppercase">

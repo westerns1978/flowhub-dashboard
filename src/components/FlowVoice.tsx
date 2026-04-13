@@ -10,7 +10,7 @@
    ================================================================ */
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, MicOff, X, Send, Loader2 } from "lucide-react";
+import { Mic, MicOff, X, Loader2 } from "lucide-react";
 import type { DnaResult } from "../types";
 
 // ── Gemini SDK (imported from @google/genai) ─────────────────────
@@ -247,6 +247,7 @@ async function executeTool(
 export default function FlowVoice() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(false);
+  const [flowError, setFlowError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [lastDna, setLastDna] = useState<DnaResult | null>(null);
@@ -445,6 +446,7 @@ export default function FlowVoice() {
     }
 
     // Tear down any prior session cleanly
+    setFlowError(null);
     stopAllAudio();
     sessionRef.current = null;
     connectingRef.current = true;
@@ -521,7 +523,10 @@ export default function FlowVoice() {
           },
           onmessage: handleServerMessage,
           onerror: (e: ErrorEvent) => {
-            console.error("[Flow] WebSocket ERROR:", e);
+            const errMsg = e.message || "WebSocket connection error";
+            console.error("[Flow] WebSocket ERROR:", errMsg, e);
+            setFlowError(`Connection error: ${errMsg}`);
+            addTranscript("tool", `Error: ${errMsg}`);
             sessionRef.current = null;
             connectingRef.current = false;
             stopAllAudio();
@@ -529,16 +534,20 @@ export default function FlowVoice() {
           },
           onclose: (e: CloseEvent) => {
             const dur = Date.now() - (sessionStartTimeRef.current || 0);
-            console.log("[Flow] WebSocket CLOSED after", dur, "ms", e);
+            const reason = e.reason || `code ${e.code}`;
+            console.log("[Flow] WebSocket CLOSED after", dur, "ms —", reason);
             sessionRef.current = null;
             connectingRef.current = false;
             stopAllAudio();
             if (dur < 3000) {
-              console.error("[Flow] Too quick — not reconnecting");
-              addTranscript("tool", "Session closed immediately. Check API key and model.");
+              const errMsg = `Session closed after ${dur}ms (${reason}). Model may be unavailable or config rejected.`;
+              console.error("[Flow] Too quick —", errMsg);
+              setFlowError(errMsg);
+              addTranscript("tool", errMsg);
               setActive(false);
               return;
             }
+            addTranscript("tool", "Session ended.");
             setActive(false);
           },
         },
@@ -550,8 +559,10 @@ export default function FlowVoice() {
         console.log("[Flow] Session stored (pre-onopen fallback)");
       }
     } catch (err) {
-      console.error("[Flow] Start failed:", err);
-      addTranscript("tool", `Failed to start: ${String(err)}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[Flow] Start failed:", errMsg, err);
+      setFlowError(`Failed to start: ${errMsg}`);
+      addTranscript("tool", `Failed to start: ${errMsg}`);
       sessionRef.current = null;
       connectingRef.current = false;
       stopAllAudio();
@@ -651,12 +662,28 @@ export default function FlowVoice() {
             </div>
           )}
 
+          {/* Error banner with retry */}
+          {flowError && (
+            <div className="px-4 py-3 bg-fh-red/10 border-b border-fh-red/20">
+              <p className="text-xs text-fh-red-bright font-mono mb-2">{flowError}</p>
+              <button
+                onClick={() => {
+                  setFlowError(null);
+                  startSession();
+                }}
+                className="text-xs font-mono font-medium text-white bg-fh-red px-3 py-1 rounded hover:bg-fh-red-bright transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Transcript */}
           <div
             ref={panelRef}
             className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[200px]"
           >
-            {transcript.length === 0 && !active && (
+            {transcript.length === 0 && !active && !flowError && (
               <div className="text-center text-fh-dim text-sm py-8">
                 <p>Tap the mic button to start talking to Flow.</p>
                 <p className="mt-1 text-xs font-mono">

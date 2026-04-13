@@ -2,10 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme CSS Variables ──────────────────────────────────────── */
+
+:root {
+  /* Dark theme (default) */
+  --fh-bg: #0a0a0a;
+  --fh-bg-alt: #111111;
+  --fh-card: #1a1a1a;
+  --fh-border: #2a2a2a;
+  --fh-text: #ffffff;
+  --fh-muted: #999999;
+  --fh-dim: #555555;
+}
+
+:root.light {
+  --fh-bg: #f5f5f5;
+  --fh-bg-alt: #ffffff;
+  --fh-card: #ffffff;
+  --fh-border: #e0e0e0;
+  --fh-text: #111111;
+  --fh-muted: #555555;
+  --fh-dim: #999999;
+}
+
 @layer base {
   body {
-    background-color: #0a0a0a;
-    color: #e2e8f0;
+    background-color: var(--fh-bg);
+    color: var(--fh-text);
     font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
       "Segoe UI", Roboto, sans-serif;
   }
@@ -15,15 +38,18 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #111111;
+    background: var(--fh-bg-alt);
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: var(--fh-border);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #3a3a3a;
   }
+
+  /* Light mode text overrides — ensure visibility */
+  .light .text-white { color: var(--fh-text); }
 }
 
 @layer components {
@@ -45,8 +71,9 @@
            font-medium;
   }
   .input {
-    @apply bg-fh-bg border border-fh-border rounded-lg px-3 py-2 text-white
-           placeholder-fh-dim focus:outline-none focus:border-fh-red
-           focus:ring-1 focus:ring-fh-red/30 transition-colors w-full;
+    @apply bg-fh-bg border border-fh-border rounded-lg px-3 py-2
+           text-fh-text placeholder-fh-dim focus:outline-none
+           focus:border-fh-red focus:ring-1 focus:ring-fh-red/30
+           transition-colors w-full;
   }
 }
